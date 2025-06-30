@@ -179,6 +179,12 @@ XXX,XX = valor total, com ponto como separador decimal
 EXEMPLO DE RETORNO:
 20-06 DEPOSITO CONTA CORRENTE 2000,00
 
+**REGRAS GERAIS:**
+- Use "ND" para dados não encontrados
+- RETORNE APENAS no formato especificado
+- Formato obrigatório: XX-XX VENDA XXXX NOME_CLIENTE XXX,XX
+- Não retorne palavras como Boleto
+- Não retorne palavras como Venda
 `,
 
         PAYMENT: `Identifique se é uma NOTA FISCAL DE VENDA e extraia os seguintes dados:
@@ -191,7 +197,7 @@ Campo “DATA DE EMISSÃO”
 
 Dados a extrair:
 DATA DE EMISSÃO: Procure o campo com a etiqueta “Data de Emissão”
-NOME DO FORNECEDOR: Campo “Razão Social” no topo do documento
+NOME DO FORNECEDOR: no primeiro bloco superior direito 
 VALOR DA NOTA: Campo “TOTAL DA NOTA” (não confundir com total dos produtos)
 FORMATO DE RETORNO:
 XX-XX FORNECEDOR NOME_FORNECEDOR XXX,XX
@@ -259,7 +265,7 @@ Campo “Comprovante de Transação Bancária”
 Campo “Data da operação”
 
 Dados a extrair:
-DATA DA OPERAÇÃO: Campo “Data da operação”
+DATA DA OPERAÇÃO: Campo “Data de Vencimento”
 NOME: Campo “Nome” dentro de “Dados de quem recebeu”
 VALOR: Campo “Valor” em “Dados da transferência”
 
@@ -327,7 +333,7 @@ Campo “Confirmação de Operação”
 Campo “Data da operação”
 
 Dados a extrair:
-DATA DA OPERAÇÃO: Campo “Data da operação”
+DATA DA OPERAÇÃO: Campo “Data de Vencimento”
 NOME: Campo “Nome” dentro de “Dados de quem recebeu”
 DESCRIÇÃO: Campo “Descrição” em “Dados da Transferência”
 VALOR: Campo “Valor” em “Dados da Transferência”
@@ -348,6 +354,8 @@ EXEMPLO DE RETORNO:
 - Use "ND" para dados não encontrados
 - RETORNE APENAS no formato especificado
 - Formato obrigatório: XX-XX VENDA XXXX NOME_CLIENTE XXX,XX
+- Não retorne palavras como Boleto
+- Não retorne palavras como Venda
 `
       }
     }
