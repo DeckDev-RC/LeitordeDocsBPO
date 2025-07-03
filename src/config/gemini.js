@@ -164,6 +164,14 @@ class GeminiConfig {
   }
   
   /**
+   * Obtém a chave API atual
+   * @returns {string} Chave API atual
+   */
+  getCurrentApiKey() {
+    return this.apiKey;
+  }
+
+  /**
    * Obtém estatísticas do gerenciador de chaves
    * @returns {Object} Estatísticas de uso das chaves
    */

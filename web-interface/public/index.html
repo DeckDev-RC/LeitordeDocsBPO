@@ -40,6 +40,10 @@
                             <i class="fas fa-car-battery"></i>
                             <span>Eletromoveis</span>
                         </button>
+                        <button class="company-tab" data-company="marcmix">
+                            <i class="fas fa-industry"></i>
+                            <span>MarcMix</span>
+                        </button>
                     </div>
                 </div>
             </section>
@@ -50,11 +54,11 @@
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-content">
                             <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                            <h3>Arraste sua imagem aqui</h3>
+                            <h3>Arraste seus arquivos aqui</h3>
                             <p>ou <span class="upload-button-text">clique para selecionar</span></p>
-                            <small>Suporta: JPG, PNG, GIF, WebP, BMP (máx. 10MB por arquivo) - Sem limite de quantidade</small>
+                            <small>Suporta: Imagens (JPG, PNG, GIF, WebP, BMP) e PDFs (máx. 20MB por arquivo) - Sem limite de quantidade</small>
                         </div>
-                        <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+                        <input type="file" id="fileInput" accept="image/*,.pdf" multiple style="display: none;">
                     </div>
 
                     <!-- Analysis Type Selection -->
@@ -81,8 +85,8 @@
                         <!-- Multiple Images Toggle -->
                         <div class="multiple-images-toggle">
                             <label class="toggle-label">
-                                <i class="fas fa-images"></i>
-                                Analisar múltiplas imagens
+                                <i class="fas fa-files"></i>
+                                Analisar múltiplos arquivos
                             </label>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="multipleImagesToggle">
@@ -96,14 +100,14 @@
             <!-- Preview Section -->
             <section class="preview-section" id="previewSection" style="display: none;">
                 <div class="preview-container">
-                    <h3><i class="fas fa-image"></i> Preview da Imagem</h3>
+                    <h3><i class="fas fa-file"></i> Preview do Arquivo</h3>
                     <div class="image-preview">
                         <img id="previewImage" alt="Preview">
                         <div class="image-info">
                             <span id="imageInfo"></span>
                             <button class="analyze-btn btn btn-primary" id="analyzeBtn">
                                 <i class="fas fa-search"></i>
-                                Analisar Imagem
+                                Analisar Arquivo
                             </button>
                         </div>
                     </div>
@@ -113,14 +117,14 @@
             <!-- Multiple Images Preview Section -->
             <section class="multiple-preview-section" id="multiplePreviewSection" style="display: none;">
                 <div class="multiple-preview-container">
-                    <h3><i class="fas fa-images"></i> Preview das Imagens (<span id="imageCount">0</span>)</h3>
+                    <h3><i class="fas fa-files"></i> Preview dos Arquivos (<span id="imageCount">0</span>)</h3>
                     <div class="multiple-images-grid" id="multipleImagesGrid">
                         <!-- Imagens serão inseridas aqui dinamicamente -->
                     </div>
                     <div class="multiple-actions">
                         <button class="analyze-all-btn btn btn-primary" id="analyzeAllBtn">
                             <i class="fas fa-search"></i>
-                            Analisar Todas as Imagens
+                            Analisar Todos os Arquivos
                         </button>
                         <button class="clear-all-btn btn btn-secondary" id="clearAllBtn">
                             <i class="fas fa-trash"></i>

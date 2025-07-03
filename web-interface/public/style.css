@@ -2377,4 +2377,160 @@ mark {
     color: var(--text-primary);
     border: 2px solid var(--border-default);
     box-shadow: var(--shadow-sm);
+}
+
+/* ========================================
+   COMPONENTES - SUPORTE A PDF
+   ======================================== */
+
+/* Estilos para badges de tipo de arquivo */
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.file-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.file-type-badge.pdf-badge {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.file-type-badge.image-badge {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(56, 182, 255, 0.3);
+}
+
+.file-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+    word-break: break-word;
+}
+
+.file-size {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* Estilos para preview de PDF no grid múltiplo */
+.multiple-image-item.pdf-item {
+    background: linear-gradient(135deg, var(--surface-bg), var(--elevated-bg));
+    border: 2px solid #ef4444;
+}
+
+.multiple-image-item.pdf-item:hover {
+    border-color: #dc2626;
+    box-shadow: 0 8px 32px rgba(239, 68, 68, 0.3);
+}
+
+.pdf-preview {
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.pdf-preview::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.pdf-icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--space-xs);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.pdf-label {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Atualização do texto da área de upload */
+.upload-content small {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    display: block;
+}
+
+/* Responsividade para elementos PDF */
+@media (max-width: 768px) {
+    .file-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-xs);
+    }
+    
+    .file-type-badge {
+        align-self: flex-start;
+    }
+    
+    .pdf-preview {
+        height: 100px;
+    }
+    
+    .pdf-icon {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .file-type-badge {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+    }
+    
+    .pdf-preview {
+        height: 80px;
+    }
+    
+    .pdf-icon {
+        font-size: 1.5rem;
+    }
+    
+    .pdf-label {
+        font-size: 0.7rem;
+    }
 } 

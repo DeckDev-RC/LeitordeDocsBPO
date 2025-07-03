@@ -588,6 +588,162 @@ class GeminiService {
   }
   
   /**
+   * Analisa um documento PDF extraindo dados estruturados
+   * @param {Buffer} pdfBuffer - Buffer do arquivo PDF
+   * @param {string} customPrompt - Prompt personalizado (opcional)
+   * @param {boolean} forceStructuredFormat - Se deve forçar formato estruturado (padrão: true)
+   * @param {string} fileName - Nome do arquivo (opcional, para anti-cache)
+   * @param {number} fileIndex - Índice do arquivo no lote (opcional, para anti-cache)
+   * @param {string} company - Empresa selecionada
+   * @param {string} analysisType - Tipo de análise
+   * @returns {Promise<string>} Dados extraídos no formato: DD-MM NOME ESTABELECIMENTO VALOR
+   */
+  async analyzePDF(pdfBuffer, customPrompt = null, forceStructuredFormat = true, fileName = '', fileIndex = null, company = 'enia-marcia-joias', analysisType = 'financial-receipt') {
+    // Usa prompt centralizado como padrão se não fornecido um customPrompt
+    const originalPrompt = customPrompt || getPrompt(company, analysisType);
+    
+    // Gera hash do PDF para cache
+    const crypto = await import('crypto');
+    const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+    
+    // Verifica se já temos essa análise em cache
+    const cachedResult = CacheHelper.getCachedResult(pdfHash, originalPrompt, 'pdf');
+    if (cachedResult) {
+      console.log(`🚀 Usando resultado em cache para ${fileName || 'PDF'}`);
+      return cachedResult;
+    }
+    
+    const requestFn = async (attempt = 0) => {
+      try {
+        // Aplica estratégias anti-cache completas
+        const antiCacheData = AntiCacheHelper.applyFullAntiCache(
+          originalPrompt, 
+          fileName, 
+          fileIndex, 
+          attempt
+        );
+
+        console.log('🔍 DEBUG - Analisando PDF:', fileName);
+        console.log('🔍 DEBUG - Prompt sendo usado:', antiCacheData.prompt.substring(0, 200) + '...');
+        
+        // Log das estratégias aplicadas
+        if (!antiCacheData.isTestPrompt) {
+          AntiCacheHelper.logAntiCacheStrategy(fileName, attempt);
+        }
+
+        // Obtém o modelo atualizado com a chave atual
+        const model = geminiConfig.getModel();
+
+        // Para PDFs, usamos o File API do Gemini
+        const { GoogleAIFileManager } = await import('@google/generative-ai/server');
+        const fileManager = new GoogleAIFileManager(geminiConfig.getCurrentApiKey());
+
+        // Upload do PDF para o File API
+        console.log('📤 Fazendo upload do PDF para o Gemini File API...');
+        
+        // Cria arquivo temporário para upload
+        const fs = await import('fs');
+        const path = await import('path');
+        const os = await import('os');
+        
+        const tempDir = os.tmpdir();
+        const tempFileName = `temp_pdf_${Date.now()}_${Math.random().toString(36).substring(2)}.pdf`;
+        const tempFilePath = path.join(tempDir, tempFileName);
+        
+        // Escreve o buffer no arquivo temporário
+        fs.writeFileSync(tempFilePath, pdfBuffer);
+        
+        try {
+          // Upload do arquivo
+          const uploadResponse = await fileManager.uploadFile(tempFilePath, {
+            mimeType: 'application/pdf',
+            displayName: fileName || 'documento.pdf'
+          });
+
+          console.log(`📤 PDF uploaded: ${uploadResponse.file.displayName}`);
+          console.log(`📊 File URI: ${uploadResponse.file.uri}`);
+
+          // Analisa o PDF
+          const result = await model.generateContent([
+            antiCacheData.prompt,
+            {
+              fileData: {
+                mimeType: uploadResponse.file.mimeType,
+                fileUri: uploadResponse.file.uri
+              }
+            }
+          ], { 
+            generationConfig: antiCacheData.generationConfig 
+          });
+
+          const response = await result.response;
+          const rawData = response.text();
+
+          // Remove o arquivo do File API após o processamento
+          try {
+            await fileManager.deleteFile(uploadResponse.file.name);
+            console.log(`🗑️ Arquivo removido do File API: ${uploadResponse.file.name}`);
+          } catch (deleteError) {
+            console.warn('Aviso: Não foi possível remover arquivo do File API:', deleteError.message);
+          }
+
+          let finalResult;
+          if (forceStructuredFormat && !antiCacheData.isTestPrompt) {
+            finalResult = this.formatReceiptDataStrict(rawData);
+          } else {
+            finalResult = rawData;
+          }
+          
+          // Armazena em cache o resultado final
+          CacheHelper.cacheResult(pdfHash, originalPrompt, 'pdf', finalResult);
+          
+          return finalResult;
+
+        } finally {
+          // Remove arquivo temporário
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (unlinkError) {
+            console.warn('Aviso: Não foi possível remover arquivo temporário:', unlinkError.message);
+          }
+        }
+
+      } catch (error) {
+        console.error('Erro ao analisar PDF:', error);
+        throw error;
+      }
+    };
+
+    try {
+      return await this.queueRequest(async () => {
+        try {
+          return await requestFn(0); 
+        } catch (error) {
+          const is429Error = error.message.includes('429') || error.message.includes('Too Many Requests');
+          
+          if (is429Error) {
+            // Reporta o erro ao gerenciador de chaves e rotaciona para a próxima chave
+            geminiConfig.reportApiKeyError(error);
+            
+            // Atualiza o modelo com a nova chave
+            this.model = geminiConfig.getModel();
+            
+            // Tenta novamente com a nova chave
+            console.log(`🔄 Erro de limite de taxa. Rotacionando para nova chave e tentando novamente...`);
+            return await requestFn(0);
+          }
+          
+          console.error('Erro ao analisar PDF:', error);
+          throw error;
+        }
+      });
+    } catch (error) {
+      console.error('Falha na análise de PDF:', error);
+      throw new Error(`Erro ao processar PDF: ${error.message}`);
+    }
+  }
+
+  /**
    * Obtém estatísticas do gerenciador de chaves
    * @returns {Object} Estatísticas de uso das chaves
    */

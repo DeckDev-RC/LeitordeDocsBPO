@@ -47,17 +47,20 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 20 * 1024 * 1024, // 20MB (aumentado para PDFs)
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp|bmp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const allowedImageTypes = /jpeg|jpg|png|gif|webp|bmp/;
+    const allowedDocTypes = /pdf/;
+    
+    const extname = path.extname(file.originalname).toLowerCase();
+    const isImage = allowedImageTypes.test(extname.substring(1)) && file.mimetype.startsWith('image/');
+    const isPDF = allowedDocTypes.test(extname.substring(1)) && file.mimetype === 'application/pdf';
 
-    if (mimetype && extname) {
+    if (isImage || isPDF) {
       return cb(null, true);
     } else {
-      cb(new Error('Apenas imagens são permitidas!'));
+      cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP, BMP) e documentos PDF são permitidos!'));
     }
   }
 });
@@ -134,9 +137,6 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
     
     // Se não encontrou no armazenamento, realiza a análise
     if (!analysis) {
-      // Prepara a imagem para análise
-      const imageData = await imageHelper.prepareImageForAnalysis(imagePath);
-
       // Detecta se é um prompt de teste para desabilitar formatação estruturada
       const isTestPrompt = prompt && (
         prompt.toLowerCase().includes('pizza') || 
@@ -144,17 +144,40 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
         prompt.length < 50
       );
 
-      // Analisa a imagem com o Gemini
-      analysis = await geminiService.analyzeReceipt(
-        imageData.data,
-        imageData.mimeType,
-        prompt,
-        !isTestPrompt, // Se for teste, desabilita formatação (false), senão habilita (true)
-        req.file.originalname, // Nome do arquivo para anti-cache
-        null, // fileIndex
-        company,
-        analysisType
-      );
+      // Verifica se é PDF ou imagem
+      const isPDF = req.file.mimetype === 'application/pdf';
+
+      if (isPDF) {
+        console.log(`📄 Analisando PDF: ${req.file.originalname}`);
+        
+        // Analisa o PDF com o Gemini
+        analysis = await geminiService.analyzePDF(
+          fileBuffer,
+          prompt,
+          !isTestPrompt, // Se for teste, desabilita formatação (false), senão habilita (true)
+          req.file.originalname, // Nome do arquivo para anti-cache
+          null, // fileIndex
+          company,
+          analysisType
+        );
+      } else {
+        console.log(`🖼️ Analisando imagem: ${req.file.originalname}`);
+        
+        // Prepara a imagem para análise
+        const imageData = await imageHelper.prepareImageForAnalysis(imagePath);
+
+        // Analisa a imagem com o Gemini
+        analysis = await geminiService.analyzeReceipt(
+          imageData.data,
+          imageData.mimeType,
+          prompt,
+          !isTestPrompt, // Se for teste, desabilita formatação (false), senão habilita (true)
+          req.file.originalname, // Nome do arquivo para anti-cache
+          null, // fileIndex
+          company,
+          analysisType
+        );
+      }
 
       // Armazena o resultado para uso futuro, associado ao lote
       analysisStore.storeAnalysis(req.file.originalname, fileHash, analysisType, analysis, batchId);
@@ -326,13 +349,13 @@ app.get('/api/stats', (req, res) => {
   }
 });
 
-// Endpoint para download de imagem renomeada
+// Endpoint para download de arquivo renomeado
 app.post('/api/download-renamed', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Nenhuma imagem foi enviada' 
+        error: 'Nenhum arquivo foi enviado' 
       });
     }
 
@@ -359,9 +382,6 @@ app.post('/api/download-renamed', upload.single('image'), async (req, res) => {
       });
     }
 
-    // Prepara a imagem para análise
-    const imageData = await imageHelper.prepareImageForAnalysis(imagePath);
-
     // Detecta se é um prompt de teste para desabilitar formatação estruturada
     const isTestPrompt = prompt && (
       prompt.toLowerCase().includes('pizza') || 
@@ -369,15 +389,54 @@ app.post('/api/download-renamed', upload.single('image'), async (req, res) => {
       prompt.length < 50
     );
 
-    // Analisa a imagem com o Gemini
-    const analysis = await geminiService.analyzeReceipt(
-      imageData.data,
-      imageData.mimeType,
-      prompt,
-      !isTestPrompt, // Se for teste, desabilita formatação (false), senão habilita (true)
-      req.file.originalname, // Nome do arquivo para anti-cache
-      req.files.indexOf(req.file) // Índice do arquivo no lote para anti-cache
-    );
+    // Lê o arquivo para análise e geração de hash
+    const fileBuffer = await fs.readFile(imagePath);
+    const fileHash = await generateFileHash(fileBuffer);
+    
+    // Verifica se já temos essa análise armazenada
+    let analysis = analysisStore.getAnalysis(req.file.originalname, fileHash, analysisType);
+    
+    if (analysis) {
+      console.log(`🔄 Reutilizando análise existente para ${req.file.originalname}`);
+    } else {
+      console.log(`📋 Cache miss. Processando nova análise.`);
+      
+      // Verifica se é PDF ou imagem
+      const isPDF = req.file.mimetype === 'application/pdf';
+
+      if (isPDF) {
+        console.log(`📄 Analisando PDF para renomear: ${req.file.originalname}`);
+        
+        // Analisa o PDF com o Gemini
+        analysis = await geminiService.analyzePDF(
+          fileBuffer,
+          prompt,
+          !isTestPrompt, // Se for teste, desabilita formatação (false), senão habilita (true)
+          req.file.originalname, // Nome do arquivo para anti-cache
+          null, // fileIndex
+          'enia-marcia-joias', // company padrão
+          analysisType
+        );
+      } else {
+        console.log(`🖼️ Analisando imagem para renomear: ${req.file.originalname}`);
+        
+        // Prepara a imagem para análise
+        const imageData = await imageHelper.prepareImageForAnalysis(imagePath);
+
+        // Analisa a imagem com o Gemini
+        analysis = await geminiService.analyzeReceipt(
+          imageData.data,
+          imageData.mimeType,
+          prompt,
+          !isTestPrompt, // Se for teste, desabilita formatação (false), senão habilita (true)
+          req.file.originalname, // Nome do arquivo para anti-cache
+          null // fileIndex
+        );
+      }
+      
+      // Armazena o resultado para uso futuro
+      analysisStore.storeAnalysis(req.file.originalname, fileHash, analysisType, analysis);
+    }
 
     // Gera o novo nome baseado na análise
     const newFileName = fileNameHelper.generateFileNameFromAnalysis(
@@ -386,8 +445,7 @@ app.post('/api/download-renamed', upload.single('image'), async (req, res) => {
       originalExtension
     );
 
-    // Lê o arquivo da imagem
-    const imageBuffer = await fs.readFile(imagePath);
+    // O arquivo já foi lido para análise (fileBuffer)
 
     // Remove o arquivo temporário
     try {
@@ -399,10 +457,10 @@ app.post('/api/download-renamed', upload.single('image'), async (req, res) => {
     // Configura headers para download
     res.setHeader('Content-Type', req.file.mimetype);
     res.setHeader('Content-Disposition', `attachment; filename="${newFileName}"`);
-    res.setHeader('Content-Length', imageBuffer.length);
+    res.setHeader('Content-Length', fileBuffer.length);
 
     // Envia o arquivo
-    res.send(imageBuffer);
+    res.send(fileBuffer);
 
   } catch (error) {
     console.error('Erro no download renomeado:', error);
@@ -451,13 +509,13 @@ app.get('/api/progress', (req, res) => {
   });
 });
 
-// Endpoint para download de múltiplas imagens renomeadas (ZIP)
+// Endpoint para download de múltiplos arquivos renomeados (ZIP)
 app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Nenhuma imagem foi enviada' 
+        error: 'Nenhum arquivo foi enviado' 
       });
     }
 
@@ -466,7 +524,7 @@ app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (
     // Gera um ID de lote único para este processamento em massa
     const batchId = generateBatchId();
     
-    console.log(`📦 Processando ${totalFiles} imagens para ZIP renomeado`);
+    console.log(`📦 Processando ${totalFiles} arquivos para ZIP renomeado`);
     console.log(`🆔 ID do lote: ${batchId}`);
     console.log(`🚀 Usando processamento paralelo com até ${parallelAnalysisManager.maxParallelAnalyses} análises simultâneas`);
 
@@ -506,7 +564,7 @@ app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (
     });
 
     // Configura headers para download do ZIP
-    const zipFileName = `imagens_analisadas_${Date.now()}.zip`;
+    const zipFileName = `arquivos_analisados_${Date.now()}.zip`;
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
 
@@ -523,7 +581,7 @@ app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (
     
     console.log('🎯 Preparando análises em paralelo...');
 
-    // Prepara todas as imagens para análise
+    // Prepara todos os arquivos para análise
     for (const file of req.files) {
       try {
         const imagePath = file.path;
@@ -558,8 +616,8 @@ app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (
             batchId
           });
         } else {
-          // Se não temos a análise, prepara para processamento paralelo
-          const imageData = await imageHelper.prepareImageForAnalysis(imagePath);
+          // Se não temos a análise, prepara para processamento
+          const isPDF = file.mimetype === 'application/pdf';
           
           // Detecta se é um prompt de teste
           const isTestPrompt = prompt && (
@@ -567,16 +625,34 @@ app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (
             prompt.toLowerCase().includes('teste') ||
             prompt.length < 50
           );
-          
-          // Adiciona à fila de análises paralelas
-          const analysisPromise = parallelAnalysisManager.queueAnalysis({
-            imageData: imageData.data,
-            mimeType: imageData.mimeType,
-            prompt,
-            fileName: file.originalname,
-            fileIndex: req.files.indexOf(file),
-            forceStructuredFormat: !isTestPrompt
-          });
+
+          let analysisPromise;
+
+          if (isPDF) {
+            // Para PDFs, analisa diretamente
+            analysisPromise = geminiService.analyzePDF(
+              fileBuffer,
+              prompt,
+              !isTestPrompt,
+              file.originalname,
+              req.files.indexOf(file),
+              'enia-marcia-joias',
+              analysisType
+            );
+          } else {
+            // Para imagens, prepara e usa o gerenciador paralelo
+            const imageData = await imageHelper.prepareImageForAnalysis(imagePath);
+            
+            // Adiciona à fila de análises paralelas
+            analysisPromise = parallelAnalysisManager.queueAnalysis({
+              imageData: imageData.data,
+              mimeType: imageData.mimeType,
+              prompt,
+              fileName: file.originalname,
+              fileIndex: req.files.indexOf(file),
+              forceStructuredFormat: !isTestPrompt
+            });
+          }
           
           // Adiciona a promessa ao array
           analysisPromises.push(
@@ -745,8 +821,8 @@ app.post('/api/download-multiple-renamed', upload.array('images', 1000), async (
     });
 
     console.log(`\n📊 Resumo do processamento:
-- Total de imagens: ${totalFiles}
-- Processadas com sucesso: ${processedCount - errorCount}
+- Total de arquivos: ${totalFiles}
+- Processados com sucesso: ${processedCount - errorCount}
 - Erros: ${errorCount}
 - ID do lote: ${batchId}
 - Análises paralelas: ${parallelAnalysisManager.getStats().totalProcessed}
@@ -805,7 +881,7 @@ app.use((error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        error: 'Arquivo muito grande! Máximo permitido: 10MB'
+        error: 'Arquivo muito grande! Máximo permitido: 20MB'
       });
     }
   }

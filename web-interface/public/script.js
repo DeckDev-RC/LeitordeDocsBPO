@@ -239,14 +239,17 @@ function handleFile(file) {
     console.log('handleFile chamado com:', file.name);
     
     // Valida tipo de arquivo
-    if (!file.type.startsWith('image/')) {
-        showToast('Por favor, selecione apenas arquivos de imagem.', 'error');
+    const isImage = file.type.startsWith('image/');
+    const isPDF = file.type === 'application/pdf';
+    
+    if (!isImage && !isPDF) {
+        showToast('Por favor, selecione apenas arquivos de imagem (JPEG, PNG, GIF, WebP, BMP) ou documentos PDF.', 'error');
         return;
     }
     
-    // Valida tamanho (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        showToast('Arquivo muito grande! Máximo permitido: 10MB', 'error');
+    // Valida tamanho (20MB)
+    if (file.size > 20 * 1024 * 1024) {
+        showToast('Arquivo muito grande! Máximo permitido: 20MB', 'error');
         return;
     }
     
@@ -255,19 +258,52 @@ function handleFile(file) {
 }
 
 function showPreview(file) {
-    const reader = new FileReader();
+    const isPDF = file.type === 'application/pdf';
     
-    reader.onload = (e) => {
-        previewImage.src = e.target.result;
-        imageInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    if (isPDF) {
+        // Para PDFs, mostra um ícone e informações
+        previewImage.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI0MCIgdmlld0JveD0iMCAwIDIwMCAyNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjQwIiBmaWxsPSIjRjNGNEY2Ii8+CjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNFRjQ0NDQiLz4KPHN2ZyB4PSI3MCIgeT0iODAiIHdpZHRoPSI2MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xNCAySDZhMiAyIDAgMCAwLTIgMnYxNmEyIDIgMCAwIDAgMiAyaDEyYTIgMiAwIDAgMCAyLTJWOGwtNi02eiIvPgo8cGF0aCBkPSJNMTQgMnY2aDYiLz4KPHN2ZyB4PSI2IiB5PSIxNCIgd2lkdGg9IjEyIiBoZWlnaHQ9IjQiPgo8dGV4dCB4PSI2IiB5PSIzIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMyIgZmlsbD0id2hpdGUiPlBERjwvdGV4dD4KPC9zdmc+Cjwvc3ZnPgo8L3N2Zz4K';
+        previewImage.alt = 'PDF Document';
+        previewImage.style.objectFit = 'contain';
+        previewImage.style.backgroundColor = '#f8f9fa';
         
-        // Mostra seção de preview
-        hideAllSections();
-        previewSection.style.display = 'block';
-        previewSection.classList.add('fade-in');
-    };
+        imageInfo.innerHTML = `
+            <div class="file-info">
+                <div class="file-type-badge pdf-badge">📄 PDF</div>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${formatFileSize(file.size)}</div>
+                </div>
+            </div>
+        `;
+    } else {
+        // Para imagens, mostra preview normal
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            previewImage.src = e.target.result;
+            previewImage.alt = 'Preview da imagem';
+            previewImage.style.objectFit = 'cover';
+            previewImage.style.backgroundColor = 'transparent';
+            
+            imageInfo.innerHTML = `
+                <div class="file-info">
+                    <div class="file-type-badge image-badge">🖼️ Imagem</div>
+                    <div class="file-details">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                </div>
+            `;
+        };
+        
+        reader.readAsDataURL(file);
+    }
     
-    reader.readAsDataURL(file);
+    // Mostra seção de preview
+    hideAllSections();
+    previewSection.style.display = 'block';
+    previewSection.classList.add('fade-in');
 }
 
 async function analyzeImage() {
@@ -296,6 +332,16 @@ async function analyzeImage() {
             method: 'POST',
             body: formData
         });
+        
+        // Verifica se a resposta é JSON válida
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Servidor retornou ${response.status}: ${response.statusText}. Resposta não é JSON válida.`);
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const result = await response.json();
         
@@ -978,24 +1024,57 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Função para teste de conectividade
-async function testConnection() {
+// Função para teste de conectividade com retry
+async function testConnection(retryCount = 0, maxRetries = 5) {
     try {
+        console.log(`🔄 Testando conexão (tentativa ${retryCount + 1}/${maxRetries + 1})...`);
+        
         const response = await fetch('/api/test');
+        
+        // Verifica se a resposta é realmente JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Servidor retornou ${response.status}: ${response.statusText}. Conteúdo não é JSON.`);
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
             console.log('✅ Conexão com API funcionando');
+            return true;
         } else {
             console.warn('⚠️ API com problemas:', result.error);
+            return false;
         }
     } catch (error) {
-        console.error('❌ Erro de conexão:', error);
+        console.error(`❌ Erro de conexão (tentativa ${retryCount + 1}):`, error.message);
+        
+        // Se ainda há tentativas restantes, tenta novamente
+        if (retryCount < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Backoff exponencial, máximo 10s
+            console.log(`⏳ Tentando novamente em ${delay/1000}s...`);
+            
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return testConnection(retryCount + 1, maxRetries);
+        } else {
+            console.error('❌ Falha definitiva na conexão após todas as tentativas');
+            // Mostra toast de erro apenas se a interface estiver carregada
+            if (typeof showToast === 'function') {
+                showToast('Erro de conexão com o servidor. Verifique se a aplicação está funcionando corretamente.', 'error');
+            }
+            return false;
+        }
     }
 }
 
-// Testa conexão ao carregar a página
-testConnection();
+// Testa conexão após um delay maior para garantir que o servidor esteja pronto
+setTimeout(() => {
+    testConnection();
+}, 5000); // Aumentado de 2s para 5s
 
 // Função para verificar e carregar logo
 function checkLogo() {
@@ -1033,7 +1112,8 @@ function initializeCompanySelection() {
     // Mostra toast informativo sobre a empresa selecionada
     const companyNames = {
         'enia-marcia-joias': 'Enia Marcia Joias',
-        'eletromoveis': 'Eletromoveis'
+        'eletromoveis': 'Eletromoveis',
+        'marcmix': 'MarcMix'
     };
     
     showToast(`Empresa selecionada: ${companyNames[selectedCompany]}`, 'info');
@@ -1074,7 +1154,8 @@ function handleCompanyChange(companyId) {
     // Mostra feedback visual
     const companyNames = {
         'enia-marcia-joias': 'Enia Marcia Joias',
-        'eletromoveis': 'Eletromoveis'
+        'eletromoveis': 'Eletromoveis',
+        'marcmix': 'MarcMix'
     };
     
     showToast(`Empresa alterada para: ${companyNames[selectedCompany]}`, 'success');
@@ -1116,10 +1197,10 @@ function updateUploadAreaText() {
     const uploadDescription = uploadArea.querySelector('.upload-content p');
     
     if (isMultipleMode) {
-        uploadContent.textContent = 'Arraste suas imagens aqui';
-        uploadDescription.innerHTML = 'ou <span class="upload-button-text">clique para selecionar múltiplas</span>';
+        uploadContent.textContent = 'Arraste seus arquivos aqui';
+        uploadDescription.innerHTML = 'ou <span class="upload-button-text">clique para selecionar múltiplos arquivos</span>';
     } else {
-        uploadContent.textContent = 'Arraste sua imagem aqui';
+        uploadContent.textContent = 'Arraste seus arquivos aqui';
         uploadDescription.innerHTML = 'ou <span class="upload-button-text">clique para selecionar</span>';
     }
 }
@@ -1129,14 +1210,17 @@ function handleMultipleFiles(files) {
     
     for (let file of files) {
         // Valida tipo de arquivo
-        if (!file.type.startsWith('image/')) {
-            showToast(`${file.name}: Apenas arquivos de imagem são permitidos.`, 'error');
+        const isImage = file.type.startsWith('image/');
+        const isPDF = file.type === 'application/pdf';
+        
+        if (!isImage && !isPDF) {
+            showToast(`${file.name}: Apenas imagens e PDFs são permitidos.`, 'error');
             continue;
         }
         
-        // Valida tamanho (10MB)
-        if (file.size > 10 * 1024 * 1024) {
-            showToast(`${file.name}: Arquivo muito grande! Máximo: 10MB`, 'error');
+        // Valida tamanho (20MB)
+        if (file.size > 20 * 1024 * 1024) {
+            showToast(`${file.name}: Arquivo muito grande! Máximo: 20MB`, 'error');
             continue;
         }
         
@@ -1149,7 +1233,8 @@ function handleMultipleFiles(files) {
     if (validFiles.length > 0) {
         currentFiles.push(...validFiles);
         showMultiplePreview();
-        showToast(`${validFiles.length} imagem(ns) adicionada(s)! Total: ${currentFiles.length}`, 'success');
+        const fileTypes = validFiles.some(f => f.type === 'application/pdf') ? 'arquivo(s)' : 'imagem(ns)';
+        showToast(`${validFiles.length} ${fileTypes} adicionada(s)! Total: ${currentFiles.length}`, 'success');
     }
 }
 
@@ -1167,39 +1252,60 @@ function showMultiplePreview() {
     multipleImagesGrid.innerHTML = '';
     
     currentFiles.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        const isPDF = file.type === 'application/pdf';
+        
+        if (isPDF) {
+            // Para PDFs, mostra ícone
             const imageItem = document.createElement('div');
-            imageItem.className = 'multiple-image-item';
+            imageItem.className = 'multiple-image-item pdf-item';
             imageItem.innerHTML = `
-                <button class="remove-btn" onclick="removeImage(${index})" title="Remover imagem">
+                <button class="remove-btn" onclick="removeImage(${index})" title="Remover arquivo">
                     <i class="fas fa-times"></i>
                 </button>
-                <img src="${e.target.result}" alt="${file.name}">
+                <div class="pdf-preview">
+                    <div class="pdf-icon">📄</div>
+                    <div class="pdf-label">PDF</div>
+                </div>
                 <div class="image-name">${file.name}</div>
                 <div class="image-size">${formatFileSize(file.size)}</div>
             `;
             multipleImagesGrid.appendChild(imageItem);
-        };
-        reader.readAsDataURL(file);
+        } else {
+            // Para imagens, mostra preview normal
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'multiple-image-item';
+                imageItem.innerHTML = `
+                    <button class="remove-btn" onclick="removeImage(${index})" title="Remover imagem">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <img src="${e.target.result}" alt="${file.name}">
+                    <div class="image-name">${file.name}</div>
+                    <div class="image-size">${formatFileSize(file.size)}</div>
+                `;
+                multipleImagesGrid.appendChild(imageItem);
+            };
+            reader.readAsDataURL(file);
+        }
     });
 }
 
 function removeImage(index) {
     currentFiles.splice(index, 1);
     showMultiplePreview();
-    showToast('Imagem removida!', 'success');
+    showToast('Arquivo removido!', 'success');
 }
 
 function clearAllImages() {
     currentFiles = [];
     hideAllSections();
-    showToast('Todas as imagens foram removidas!', 'success');
+    showToast('Todos os arquivos foram removidos!', 'success');
 }
 
 async function analyzeMultipleImages() {
     if (currentFiles.length === 0) {
-        showToast('Nenhuma imagem selecionada.', 'error');
+        showToast('Nenhum arquivo selecionado.', 'error');
         return;
     }
     
@@ -1301,12 +1407,22 @@ async function analyzeMultipleImages() {
                 formData.append('analysisType', analysisType);
                 formData.append('company', selectedCompany);
                 
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
+                                        const response = await fetch('/api/analyze', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        // Verifica se a resposta é JSON válida
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            throw new Error(`Servidor retornou ${response.status}: ${response.statusText}. Resposta não é JSON válida.`);
+                        }
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        const result = await response.json();
                 
                 if (result.success) {
                     results.push({
@@ -1342,6 +1458,16 @@ async function analyzeMultipleImages() {
                             method: 'POST',
                             body: formData
                         });
+                        
+                        // Verifica se a resposta é JSON válida
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            throw new Error(`Servidor retornou ${response.status}: ${response.statusText}. Resposta não é JSON válida.`);
+                        }
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
                         
                         const result = await response.json();
                         
@@ -2028,10 +2154,20 @@ async function downloadAllRenamedImages() {
         // Fecha o EventSource
         eventSource.close();
         
+        // Verifica se a resposta é válida
         if (!response.ok) {
+            // Para downloads, não esperamos JSON, então lemos como texto
             const errorText = await response.text();
             console.error('❌ Erro na resposta:', errorText);
             throw new Error(`Erro no servidor: ${response.status} - ${errorText}`);
+        }
+        
+        // Verifica se a resposta é realmente um arquivo (não JSON de erro)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            // Se for JSON, provavelmente é uma mensagem de erro
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro desconhecido do servidor');
         }
         
         console.log('✅ Resposta recebida com sucesso');

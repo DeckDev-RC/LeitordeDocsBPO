@@ -49,11 +49,15 @@ Identifica automaticamente o tipo de documento e extrai:
 2. **Selecione o tipo de documento**:
    - Para documentos de recebimento: escolha "Contas a Receber"
    - Para documentos de pagamento: escolha "Contas a Pagar"
-3. **Faça upload da imagem** do documento
-4. **Clique em "Analisar Imagem"**
+3. **Faça upload do arquivo** (imagem ou PDF) do documento
+4. **Clique em "Analisar Arquivo"**
 5. **Visualize o resultado** no formato padronizado
 
 ## 📋 Tipos de Documentos Suportados
+
+### 📁 Formatos de Arquivo
+- ✅ **Imagens**: JPEG, PNG, GIF, WebP, BMP (máx. 20MB)
+- ✅ **PDFs**: Análise direta sem conversão (máx. 20MB)
 
 ### 📈 Contas a Receber
 - ✅ Ordens de serviço
@@ -143,7 +147,9 @@ Content-Type: application/json
 - **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
 - **IA**: Google Gemini 1.5 Flash
 - **Upload**: Multer
-- **Processamento**: Sharp (para otimização de imagens)
+- **Processamento**: 
+  - Sharp (para otimização de imagens)
+  - Google File API (para análise direta de PDFs)
 
 ## 📝 Estrutura do Projeto
 
@@ -167,10 +173,11 @@ Content-Type: application/json
 
 ## 🔐 Segurança
 
-- Upload limitado a 10MB por arquivo
-- Validação de tipos de arquivo
+- Upload limitado a 20MB por arquivo
+- Validação rigorosa de tipos de arquivo (imagens e PDFs)
 - Rate limiting para APIs
 - Arquivos temporários removidos automaticamente
+- PDFs processados via Google File API com limpeza automática
 
 ## 📈 Performance
 

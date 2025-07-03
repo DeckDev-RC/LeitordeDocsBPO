@@ -1,21 +1,32 @@
 {
-  "name": "gemini-api-integration",
+  "name": "leitor-de-foto",
   "version": "1.0.0",
-  "description": "Integração com a API do Google Gemini",
-  "main": "index.js",
-  "type": "module",
+  "description": "Aplicativo para análise de imagens e PDFs com IA - Desktop e Web",
+  "main": "electron/main.js",
+  "homepage": "./",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "web": "node web-interface/server.js",
     "web-dev": "node --watch web-interface/server.js",
+    "electron": "electron .",
+    "electron-dev": "NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "build-win-test": "electron-builder --win --config.directories.output=build-test",
+    "dist": "npm run build",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "gemini",
     "ai",
     "google",
-    "api"
+    "api",
+    "electron",
+    "desktop",
+    "web"
   ],
   "author": "",
   "license": "MIT",
@@ -23,12 +34,49 @@
     "@google/generative-ai": "^0.24.1",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "express-session": "^1.18.1",
     "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^37.1.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.leitorfoto.app",
+    "productName": "Leitor de Foto",
+    "directories": {
+      "output": "build-test"
+    },
+    "files": [
+      "electron/main.js",
+      "electron/preload.js",
+      "electron/assets/**/*",
+      "web-interface/**/*",
+      "src/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "electron/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "electron/assets/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "electron/assets/icon.png"
+    }
   }
 }

@@ -1,5 +1,106 @@
 # Changelog
 
+## [2.5.0] - 2025-01-31
+### Corrigido
+- **PARIDADE TOTAL ENTRE VERSÕES**: Versão desktop agora funciona EXATAMENTE igual à web
+- **Prompts Unificados**: Substituído sistema simplificado por prompts completos da versão web
+  - Suporte completo a ordens de serviço, Stone, Sicoob, comprovantes de venda
+  - Regras detalhadas e específicas para cada tipo de documento
+  - Formatação avançada com múltiplos cenários
+- **Endpoints Completos**: Adicionados endpoints faltantes no Electron:
+  - `/api/analyze-base64` - Análise via base64
+  - `/api/download-renamed` - Download de arquivo renomeado
+  - `/api/progress` - Endpoint SSE para progresso
+  - `/api/download-multiple-renamed` - Download múltiplo em ZIP
+- **Funcionalidades Avançadas**: Implementados recursos que estavam apenas na web:
+  - Suporte completo a múltiplos tipos de documentos
+  - Análise de PDFs no Electron
+  - Sistema de renomeação de arquivos
+  - Processamento em lote com ZIP
+  - Geração de nomes de arquivo baseada em análise
+
+### Adicionado
+- **Compatibilidade 100%**: Interface desktop agora acessa TODOS os recursos da web
+- **Análise Avançada**: Versão Electron com mesma capacidade da web
+- **Processamento Múltiplo**: Download em ZIP na versão desktop
+- **Diagnóstico Completo**: Análise profunda revelou diferenças críticas
+
+### Melhorado
+- **Arquitetura Unificada**: Eliminadas diferenças entre versões
+- **Manutenibilidade**: Código base mais consistente
+- **Experiência do Usuário**: Funcionalidades idênticas em ambas as versões
+
+## [2.4.1] - 2025-01-08
+### Corrigido
+- **Erro crítico na versão compilada do Electron** (#005)
+  - Erro "Unexpected token '<', '<!DOCTYPE'... is not valid JSON" na aplicação instalada
+  - Implementado sistema de retry com backoff exponencial para conexões com o servidor
+  - Melhorado tratamento de erro em todas as chamadas fetch para verificar se a resposta é JSON válida
+  - Aumentado delay de inicialização do servidor no Electron de 1s para 3s
+  - Adicionado verificação de saúde do servidor antes de carregar a interface
+  - Implementado retry automático no carregamento da URL principal do Electron
+  - Correção de condição de corrida entre inicialização do servidor e carregamento da interface
+  - **Versão Electron agora funciona exatamente igual à versão web**
+  - Melhorado tratamento de erro no GeminiService com logs detalhados
+  - Inicialização mais robusta com fallback automático
+
+### Adicionado
+- **Novos endpoints para diagnóstico** (#005)
+  - `/api/test-gemini` para testar especificamente a API Gemini
+  - Logs detalhados de inicialização e status dos serviços
+  - Mensagens de erro mais específicas para diferentes tipos de falha
+  - Logging detalhado no GeminiService para debugging
+
+### Melhorado
+- **Paridade total entre versões web e desktop** (#005)
+  - Mesmos endpoints e funcionalidades
+  - Mesma estrutura de resposta da API
+  - Mesmo comportamento de erro e retry
+  - Compatibilidade 100% entre as versões
+- Robustez da aplicação Electron em diferentes ambientes
+- Logs mais detalhados para debugging de problemas de conexão
+- Tratamento de erro mais específico para diferentes tipos de resposta (JSON vs HTML)
+- Tempo de inicialização mais confiável na versão compilada
+
+## [2.4.0] - 2025-01-08
+### Adicionado
+- **Suporte nativo a PDFs** (#004)
+  - Análise direta de documentos PDF sem conversão
+  - Uso do Google File API para processamento otimizado
+  - Suporte a PDFs de até 20MB
+  - Preview específico para PDFs na interface
+  
+- **Interface atualizada** (#004)
+  - Novos badges visuais para distinguir PDFs de imagens
+  - Ícones específicos para cada tipo de arquivo
+  - Textos atualizados para refletir suporte a múltiplos formatos
+  - Preview melhorado com identificação de tipo de arquivo
+  
+- **Validação aprimorada** (#004)
+  - Detecção automática de tipo de arquivo (imagem vs PDF)
+  - Validação rigorosa de MIME types
+  - Mensagens de erro específicas por tipo de arquivo
+  - Limite de tamanho aumentado para 20MB
+
+### Alterado
+- Limite de upload aumentado de 10MB para 20MB para acomodar PDFs
+- Textos da interface atualizados de "imagem" para "arquivo"
+- Filtro de upload expandido para aceitar `.pdf`
+- Função de análise roteada automaticamente por tipo de arquivo
+
+### Melhorado
+- Performance de análise de PDFs superior à conversão para imagem
+- Limpeza automática de arquivos temporários
+- Gerenciamento de memória otimizado para PDFs grandes
+- Logs detalhados para debugging de PDFs
+
+### Documentação
+- **README.md atualizado** (#004)
+  - Nova seção "Formatos de Arquivo" 
+  - Instruções atualizadas para PDFs
+  - Tecnologias expandidas com Google File API
+  - Segurança atualizada com validação de PDFs
+
 ## [2.3.0] - 2024-12-20
 ### Adicionado
 - **Sistema avançado de rate limiting** (#003)
